@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netlify suggestions - Control panel</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.6.17/dist/css/uikit.min.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+    <div id="app">
+        <div class="container-fluid">
+            <div class="row justify-content-center mt-5">
+                <div class="col">
+                    <div class="text-center">
+                        <div class="p-2">
+                            <p class="p-0 m-0" style="opacity: 0.8;">Waiting</p>
+                            <h1 class="display-1 p-0 m-0">{{count.waiting}}</h4>
+                        </div>
+                        <div class="p-2">
+                            <p class="p-0 m-0" style="opacity: 0.8;">Reviewed</p>
+                            <h1 class="display-1 p-0 m-0 text-success">{{count.reviewed}}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <table class="uk-table uk-table-divider">
+                        <thead>
+                            <tr>
+                                <th v-for="(header, index) in column">{{header}}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(user, index) in data">
+                                <td>{{user.id}}</td>
+                                <td>{{user.ref}}</td>
+                                <td>{{user.name}}</td>
+                                <td>{{user.number}}</td>
+                                <td>
+                                    <button class="uk-button uk-button-primary uk-button-small"
+                                        @click="reviewInfo(user.id)">Review</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-md-5">
+                    <table class="uk-table uk-table-divider">
+                        <thead>
+                            <tr>
+                                <th v-for="(header, index) in reviewedColumn">{{header}}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(user, index) in dataReviewed">
+                                <td>{{user.ref}}</td>
+                                <td>{{user.name}}</td>
+                                <td>{{user.number}}</td>
+                                <td>
+                                    <button class="uk-button uk-button-danger uk-button-small"
+                                        @click="deleteReviewedInfo(user.id)">Remove</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.6.17/dist/js/uikit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/uikit@3.6.17/dist/js/uikit-icons.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <script src="https://momentjs.com/downloads/moment.js"></script>
+    <script>
+        var app = new Vue({
+            el: '#app',
+            data: {
+                baseURL: 'https://netlify-suggestions.somee.com/',
+                column: ['#', 'Ref', 'Name', 'Number', 'Actions'],
+                reviewedColumn: ['Ref', 'Name', 'Number', 'Actions'],
+                data: [],
+                dataReviewed: [],
+                count: {
+                    waiting: 0,
+                    reviewed: 0
+                }
+            },
+            methods: {
+                fetchInfo: function () {
+                    axios.get(this.baseURL + '/api/all')
+                        .then(res => { this.data = res.data; this.count.waiting = res.data.length })
+                        .catch(err => console.error(err))
+                    axios.get(this.baseURL + '/api/review/all')
+                        .then(res => { this.dataReviewed = res.data.reverse(); this.count.reviewed = res.data.length; console.log(res.data.length); })
+                        .catch(err => console.error(err))
+                },
+                reviewInfo: function (id) {
+                    const findInfo = this.data.filter((data) => data.id === id);
+                    axios.post(this.baseURL + '/api/review/create', {
+                        name: findInfo[0].name,
+                        number: findInfo[0].number,
+                        ref: findInfo[0].ref,
+                        dateRegistered: findInfo[0].date,
+                        dateReviewed: moment(Date.now()).format('LLL'),
+                        status: "Reviewed"
+                    })
+                        .then(res => {
+                            console.log(res.data);
+                            this.dataReviewed = res.data.reverse();
+                            this.fetchInfo();
+                        })
+                        .catch(err => console.error(err));
+
+                    axios.delete(this.baseURL + `/api/${id}`)
+                        .then(res => this.fetchInfo())
+                        .catch(err => console.error(err));
+                },
+                deleteReviewedInfo: function (id) {
+                    axios.delete(this.baseURL + `api/review/remove/${id}`)
+                        .then(res => this.fetchInfo())
+                        .catch(err => console.error(err));
+                }
+            },
+            mounted: function () {
+                this.fetchInfo();
+            }
+        })
+    </script>
+</body>
+
+</html>
