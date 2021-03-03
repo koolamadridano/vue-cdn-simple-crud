@@ -94,10 +94,10 @@
             methods: {
                 fetchInfo: function () {
                     axios.get(this.baseURL + '/api/all')
-                        .then(res => { this.data = res.data; this.count.waiting = res.data.length })
+                        .then(res => { this.data = res.data.reverse(); this.count.waiting = res.data.length })
                         .catch(err => console.error(err))
                     axios.get(this.baseURL + '/api/review/all')
-                        .then(res => { this.dataReviewed = res.data.reverse(); this.count.reviewed = res.data.length; console.log(res.data.length); })
+                        .then(res => { this.dataReviewed = res.data; this.count.reviewed = res.data.length; console.log(res.data.length); })
                         .catch(err => console.error(err))
                 },
                 reviewInfo: function (id) {
