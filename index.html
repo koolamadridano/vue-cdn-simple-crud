@@ -23,7 +23,7 @@
                         </div>
                         <div class="p-2">
                             <p class="p-0 m-0" style="opacity: 0.8;">Reviewed</p>
-                            <h1 class="display-1 p-0 m-0 text-success">{{count.reviewed}}</h4>
+                            <h1 class="display-1 p-0 m-0 text-success">{{count.completed}}</h4>
                         </div>
                     </div>
                 </div>
@@ -32,7 +32,7 @@
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="pills-home-tab" data-bs-toggle="pill"
                                 data-bs-target="#pills-home" type="button" role="tab" aria-controls="pills-home"
-                                aria-selected="true">Pending</button>
+                                aria-selected="true">Waiting</button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="pills-profile-tab" data-bs-toggle="pill"
@@ -51,12 +51,12 @@
                                 </thead>
                                 <tbody>
                                     <tr v-for="(user, index) in data">
-                                        <td>{{user.ref}}</td>
-                                        <td>{{user.name}}</td>
-                                        <td>{{user.number}}</td>
+                                        <td>{{user.mobileNumber}}</td>
+                                        <td>{{user.status}}</td>
+                                        <td>{{user.type}}</td>
                                         <td>
-                                            <button class="uk-button uk-button-primary uk-button-small"
-                                                @click="reviewInfo(user.id)">Review</button>
+                                            <button class="btn btn-success" @click="approveOrder(user)">Approve</button>
+                                            <button class="btn btn-danger" @click="deleteOrder(user.id)">Remove</button>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -71,10 +71,10 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="(user, index) in dataReviewed">
-                                        <td>{{user.ref}}</td>
-                                        <td>{{user.name}}</td>
-                                        <td>{{user.number}}</td>
+                                    <tr v-for="(user, index) in completed">
+                                        <td>{{user.mobileNumber}}</td>
+                                        <td>{{user.status}}</td>
+                                        <td>{{user.type}}</td>
                                         <td>
                                             <button class="uk-button uk-button-danger uk-button-small"
                                                 @click="deleteReviewedInfo(user.id)">Remove</button>
@@ -100,57 +100,71 @@
         var app = new Vue({
             el: '#app',
             data: {
-                baseURL: 'https://netlify-suggestions.somee.com/',
-                column: ['Ref', 'Name', 'Number', 'Actions'],
-                reviewedColumn: ['Ref', 'Name', 'Number', 'Actions'],
+                baseURL: 'https://netlify-suggestions.somee.com/api/',
+                column: ['Contact No.', 'Status', 'Type', 'Actions'],
+                reviewedColumn: ['Contact No.', 'Status', 'Type', 'Actions'],
                 data: [],
-                dataReviewed: [],
+                completed: [],
                 count: {
                     waiting: 0,
-                    reviewed: 0
+                    completed: 0
                 }
             },
             methods: {
-                fetchInfo: function () {
-                    axios.get(this.baseURL + '/api/all')
+                fetchCompletedOrder: function () {
+                    axios.get(this.baseURL + 'order/all')
                         .then(res => {
-                            this.data = res.data.reverse();
-                            this.count.waiting = res.data.length
+                            this.completed = res.data.reverse();
+                            this.completed = res?.data.filter((data) => {
+                                return data.status === "Completed";
+                            })
+                            this.count.completed = this.completed.length == 0 ? 0 : this.completed.length;
+                            console.log(res.data);
                         })
                         .catch(err => console.error(err))
-                    axios.get(this.baseURL + '/api/review/all')
-                        .then(res => { this.dataReviewed = res.data.reverse(); this.count.reviewed = res.data.length; console.log(res.data.length); })
+                },
+                fetchInfo: function () {
+                    axios.get(this.baseURL + 'order/all')
+                        .then(res => {
+                            this.data = res.data.reverse();
+                            this.data = res?.data.filter((data) => {
+                                return data.status === "Waiting";
+                            })
+                            this.count.waiting = this.data.length == 0 ? 0 : this.data.length;
+                            console.log(res.data);
+                        })
+                        .catch(err => console.error(err))
+
+                },
+                deleteOrder: function (id) {
+                    axios.delete(this.baseURL + `order/${id}`)
+                        .then(res => {
+                            console.log(res.data);
+                            this.fetchCompletedOrder();
+                            this.fetchInfo();
+                        })
                         .catch(err => console.error(err))
                 },
-                reviewInfo: function (id) {
-                    const findInfo = this.data.filter((data) => data.id === id);
-                    axios.post(this.baseURL + '/api/review/create', {
-                        name: findInfo[0].name,
-                        number: findInfo[0].number,
-                        ref: findInfo[0].ref,
-                        dateRegistered: findInfo[0].date,
-                        dateReviewed: moment(Date.now()).format('LLL'),
-                        status: "Reviewed"
+                approveOrder: function (data) {
+                    axios.put(this.baseURL + `order`, {
+                        id: data.id,
+                        specialId: data.specialId,
+                        mobileNumber: data.mobileNumber,
+                        status: "Completed",
+                        type: data.type,
+                        datePlaced: data.datePlaced
                     })
                         .then(res => {
                             console.log(res.data);
-                            this.dataReviewed = res.data.reverse();
+                            this.fetchCompletedOrder();
                             this.fetchInfo();
                         })
-                        .catch(err => console.error(err));
-
-                    axios.delete(this.baseURL + `/api/${id}`)
-                        .then(res => this.fetchInfo())
-                        .catch(err => console.error(err));
-                },
-                deleteReviewedInfo: function (id) {
-                    axios.delete(this.baseURL + `api/review/remove/${id}`)
-                        .then(res => this.fetchInfo())
-                        .catch(err => console.error(err));
+                        .catch(err => console.error(err))
                 }
             },
             mounted: function () {
                 this.fetchInfo();
+                this.fetchCompletedOrder();
             }
         })
     </script>
